@@ -1,0 +1,40 @@
+// example `botnames.txt` file
+// this file is public domain
+
+// Physicists - they're awesome
+Niels Bohr
+Albert Einstein
+Amodeo Avogadro
+Anders Angstrom
+Andre Ampere
+Andrew D. Huxley
+Benjamin Franklin
+Blaise Pascal
+Christian Doppler
+Daniel Bernoulli
+Enrico Fermi
+Ernst Mach
+Erwin Schrodinger
+Freeman Dyson
+Galileo Galilei
+Gaspard Coriolis
+Georg Ohm
+Issac Newton
+James Maxwell
+James Joule
+Johannes Kepler
+Joseph Louis Lagrange
+Leonardo DaVinci
+Leonhard Euler
+Marie Curie
+Pierre Curie
+Max Planck
+Michael Faraday
+Nicolaus Copernicus
+Nikola Tesla
+Paul Dirac
+Rene Descartes
+Richard Feynman
+Robert Oppenheimer
+Stephen Hawking
+Werner Heisenberg

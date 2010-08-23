@@ -1,0 +1,32 @@
+
+Automatic Bot Names
+===================
+
+This is a simple plugin for SourceMod that gives names to bots when
+they are created. It is known to work under Team Fortress 2 and
+Counter Strike: Source. It certainly does *not* work under Left 4 Dead
+(2) and INS servers.
+
+I wrote this plugin to change the hardcoded names for TF2 smart
+bots. And yes, I'm aware that CS:S has a file for bot names. That's
+not the problem this was written to fix.
+
+Quick Start
+-----------
+
+If you have to, build `botnames.smx`. Then, put `botnames.smx` into
+your SourceMod plugins folder, and copy `botnames.txt` into
+`addons/sourcemod/configs/`. Edit `botnames.txt` to your liking:
+Comments start with `//` or `#`.
+
+License
+-------
+
+`botnames.sp`, `botnames.txt`, the Makefile, and this README are all
+public domain. Do with them what you will.
+
+More Information
+----------------
+
+For more information, and more extensive documentation, see
+<http://gamma-level.com/teamfortress2/botnames>.
