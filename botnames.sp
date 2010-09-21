@@ -296,9 +296,9 @@ public OnPluginStart()
 	cvarVersion = CreateConVar("sm_botnames_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
 	cvarEnabled = CreateConVar("sm_botnames_enabled", "1", "sets whether bot naming is enabled", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	
-	cvarPrefix = CreateConVar("sm_botnames_db_name", "", "a named database to load bot names from, or "" to load from file", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarPrefix = CreateConVar("sm_botnames_db_table", "botnames", "the table to load names from, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarPrefix = CreateConVar("sm_botnames_db_column", "name", "the name of the column that contains the bot names, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarDatabaseName = CreateConVar("sm_botnames_db_name", "", "a named database to load bot names from, or \"\" to load from file", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarDatabaseTable = CreateConVar("sm_botnames_db_table", "botnames", "the table to load names from, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarDatabaseColumn = CreateConVar("sm_botnames_db_column", "name", "the name of the column that contains the bot names, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	
 	cvarPrefix = CreateConVar("sm_botnames_prefix", "", "sets a prefix for bot names (include a trailing space, if needed!)", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarRandom = CreateConVar("sm_botnames_random", "1", "sets whether to randomize names used", FCVAR_NOTIFY | FCVAR_PLUGIN);
