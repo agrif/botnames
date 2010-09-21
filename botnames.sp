@@ -21,6 +21,9 @@
 // maximum players to be expected, ever
 #define MAX_PLAYERS 256
 
+// the shortest possible name length -- as a sanity check
+#define MIN_NAME_LENGTH 2
+
 // this array will store the names loaded
 new Handle:bot_names;
 
@@ -40,6 +43,13 @@ new Handle:bot_timers[MAX_PLAYERS + 1];
 new Handle:cvarVersion; // version cvar!
 new Handle:cvarEnabled; // are we enabled?
 // (note - name list still reloaded on map load even when disabled)
+
+// name list source settings
+new Handle:cvarDatabaseName; // name from databases.cfg, or "" to use file
+new Handle:cvarDatabaseTable; // what table to use
+new Handle:cvarDatabaseColumn; // what column to use
+
+// general settings
 new Handle:cvarPrefix; // bot name prefix
 new Handle:cvarRandom; // use random-order names?
 new Handle:cvarAnnounce; // announce new bots?
@@ -84,24 +94,16 @@ GenerateRedirects()
 	}
 }
 
-// a function to load data into bot_names
-ReloadNames()
+// a function to load data into bot_names from BOT_NAME_FILE
+ReloadNamesFromFile()
 {
-	next_index = 0;
 	decl String:path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, path, sizeof(path), BOT_NAME_FILE);
-	
-	if (bot_names != INVALID_HANDLE)
-	{
-		ClearArray(bot_names);
-	} else {
-		bot_names = CreateArray(MAX_NAME_LENGTH);
-	}
 	
 	new Handle:file = OpenFile(path, "r");
 	if (file == INVALID_HANDLE)
 	{
-		//PrintToServer("bot name file unopened");
+		PrintToServer("[botnames] could not open file \"%s\"", path);
 		return;
 	}
 	
@@ -111,7 +113,7 @@ ReloadNames()
 	decl String:formedname[MAX_NAME_LENGTH];
 	decl String:prefix[MAX_NAME_LENGTH];
 
-	GetConVarString(cvarPrefix, prefix, MAX_NAME_LENGTH);
+	GetConVarString(cvarPrefix, prefix, sizeof(prefix));
 
 	while (IsEndOfFile(file) == false)
 	{
@@ -134,22 +136,115 @@ ReloadNames()
 		}
 		
 		new length = strlen(newname);
-		if (length < 2)
+		if (length < MIN_NAME_LENGTH)
 		{
 			// we loaded a bum name
 			// (that is, blank line or 1 char == bad)
-			//PrintToServer("bum name");
 			continue;
 		}
 
 		// get rid of pesky whitespace
 		TrimString(newname);
 		
-		Format(formedname, MAX_NAME_LENGTH, "%s%s", prefix, newname);
+		Format(formedname, sizeof(formedname), "%s%s", prefix, newname);
 		PushArrayString(bot_names, formedname);
 	}
 	
 	CloseHandle(file);
+}
+
+// as above, but loads from the database
+ReloadNamesFromDatabase()
+{
+	decl String:dbname[128];
+	GetConVarString(cvarDatabaseName, dbname, sizeof(dbname));
+	
+	// error storage
+	decl String:error[256];
+	
+	new Handle:db = SQL_Connect(dbname, true, error, sizeof(error));
+	if (db == INVALID_HANDLE)
+	{
+		PrintToServer("[botnames] error: could not connect to database \"%s\"", dbname);
+		PrintToServer("[botnames] %s", error);
+		return;
+	}
+	
+	// get info about our query-to-be
+	decl String:dbtable[128];
+	GetConVarString(cvarDatabaseTable, dbtable, sizeof(dbtable));
+	decl String:dbcolumn[128];
+	GetConVarString(cvarDatabaseColumn, dbcolumn, sizeof(dbcolumn));
+	
+	// construct our query
+	decl String:dbquery[512];
+	Format(dbquery, sizeof(dbquery), "SELECT %s FROM %s", dbcolumn, dbtable);
+	
+	// get the data
+	new Handle:query = SQL_Query(db, dbquery);
+	if (query == INVALID_HANDLE)
+	{
+		PrintToServer("[botnames] error: could not query database \"%s\"", dbname);
+		if (SQL_GetError(db, error, sizeof(error)))
+			PrintToServer("[botnames] %s", error);
+		
+		CloseHandle(db);
+		return;
+	}
+	
+	// set up name processing vars
+	decl String:newname[MAX_NAME_LENGTH];
+	decl String:formedname[MAX_NAME_LENGTH];
+	decl String:prefix[MAX_NAME_LENGTH];
+
+	GetConVarString(cvarPrefix, prefix, sizeof(prefix));
+	
+	// process names
+	while (SQL_FetchRow(query))
+	{
+		SQL_FetchString(query, 0, newname, sizeof(newname));
+		
+		if (strlen(newname) < MIN_NAME_LENGTH)
+		{
+			// bum name -- invalid
+			continue;
+		}
+		
+		// prefix the name, and add it to our list
+		Format(formedname, sizeof(formedname), "%s%s", prefix, newname);
+		PushArrayString(bot_names, formedname);
+	}
+	
+	// clean up
+	CloseHandle(query);
+	CloseHandle(db);
+}
+
+// reloads names from file, or database -- whatever's appropriate
+ReloadNames()
+{
+	// reset name list position
+	next_index = 0;
+
+	// create -- or clear -- the name array
+	if (bot_names != INVALID_HANDLE)
+	{
+		ClearArray(bot_names);
+	} else {
+		bot_names = CreateArray(MAX_NAME_LENGTH);
+	}
+	
+	decl String:dbname[128];
+	GetConVarString(cvarDatabaseName, dbname, sizeof(dbname));
+	
+	if (strlen(dbname) == 0)
+	{
+		// no valid database setup, load from file
+		ReloadNamesFromFile();
+	} else {
+		// valid database (probably), load from there
+		ReloadNamesFromDatabase();
+	}
 }
 
 // load the next name into a string
@@ -200,6 +295,11 @@ public OnPluginStart()
 	// cvars!
 	cvarVersion = CreateConVar("sm_botnames_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
 	cvarEnabled = CreateConVar("sm_botnames_enabled", "1", "sets whether bot naming is enabled", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	
+	cvarPrefix = CreateConVar("sm_botnames_db_name", "", "a named database to load bot names from, or "" to load from file", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarPrefix = CreateConVar("sm_botnames_db_table", "botnames", "the table to load names from, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarPrefix = CreateConVar("sm_botnames_db_column", "name", "the name of the column that contains the bot names, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	
 	cvarPrefix = CreateConVar("sm_botnames_prefix", "", "sets a prefix for bot names (include a trailing space, if needed!)", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarRandom = CreateConVar("sm_botnames_random", "1", "sets whether to randomize names used", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarAnnounce = CreateConVar("sm_botnames_announce", "0", "sets whether to announce bots when added", FCVAR_NOTIFY | FCVAR_PLUGIN);
