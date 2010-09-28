@@ -10,7 +10,7 @@
 #pragma semicolon 1
 #pragma unused cvarVersion
 
-#define PLUGIN_VERSION "1.2"
+#define PLUGIN_VERSION "1.3-git"
 #define PLUGIN_DESCRIPTION "Gives automatic names to bots on creation."
 #define BOT_NAME_FILE "configs/botnames.txt"
 
