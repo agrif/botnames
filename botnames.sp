@@ -262,7 +262,7 @@ LoadNextName(String:name[], maxlen)
 }
 
 // actually set the client name
-DoBotName(client, announce)
+DoBotName(client, primary)
 {
 	// if we have no names, just stop right there
 	new loaded_names = GetArraySize(bot_names);
@@ -273,7 +273,7 @@ DoBotName(client, announce)
 
 	decl String:name[MAX_NAME_LENGTH];
 	GetClientName(client, name, MAX_NAME_LENGTH);
-	if (FindStringInArray(bot_names, name) != -1)
+	if (!primary && FindStringInArray(bot_names, name) != -1)
 	{
 		// this bot has been named appropriately, skip
 		return;
@@ -282,7 +282,7 @@ DoBotName(client, announce)
 	LoadNextName(name, MAX_NAME_LENGTH);	
 	SetClientInfo(client, "name", name);
 	
-	if (GetConVarBool(cvarAnnounce) && announce)
+	if (GetConVarBool(cvarAnnounce) && primary)
 	{
 		PrintToChatAll("[botnames] Bot created.");
 		PrintToServer("[botnames] Bot created.");
