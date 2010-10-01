@@ -48,6 +48,7 @@ new Handle:cvarEnabled; // are we enabled?
 new Handle:cvarDatabaseName; // name from databases.cfg, or "" to use file
 new Handle:cvarDatabaseTable; // what table to use
 new Handle:cvarDatabaseColumn; // what column to use
+new Handle:cvarDatabaseUseUTF8; // should we use UTF8 on mysql?
 
 // general settings
 new Handle:cvarPrefix; // bot name prefix
@@ -176,6 +177,22 @@ ReloadNamesFromDatabase()
 	decl String:dbcolumn[128];
 	GetConVarString(cvarDatabaseColumn, dbcolumn, sizeof(dbcolumn));
 	
+	// setup UTF8, if requested
+	if (GetConVarBool(cvarDatabaseUseUTF8))
+	{
+		// make sure we're using the mysql driver
+		decl String:dbdriver[128];
+		SQL_ReadDriver(db, dbdriver, sizeof(dbdriver));
+		
+		if (!StrEqual(dbdriver, "mysql"))
+		{
+			PrintToServer("[botnames] warning: attempted to force UTF8 on non-mysql connection");
+		} else {
+			// noted hack -- a DBI way to do this would be nice
+			SQL_FastQuery(db, "SET NAMES \"UTF8\"");
+		}
+	}
+	
 	// construct our query
 	decl String:dbquery[512];
 	Format(dbquery, sizeof(dbquery), "SELECT %s FROM %s", dbcolumn, dbtable);
@@ -299,6 +316,7 @@ public OnPluginStart()
 	cvarDatabaseName = CreateConVar("sm_botnames_db_name", "", "a named database to load bot names from, or \"\" to load from file", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarDatabaseTable = CreateConVar("sm_botnames_db_table", "botnames", "the table to load names from, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarDatabaseColumn = CreateConVar("sm_botnames_db_column", "name", "the name of the column that contains the bot names, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarDatabaseUseUTF8 = CreateConVar("sm_botnames_db_use_utf8", "0", "sets whether to force UTF8 encoding on a MySQL connection", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	
 	cvarPrefix = CreateConVar("sm_botnames_prefix", "", "sets a prefix for bot names (include a trailing space, if needed!)", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarRandom = CreateConVar("sm_botnames_random", "1", "sets whether to randomize names used", FCVAR_NOTIFY | FCVAR_PLUGIN);
