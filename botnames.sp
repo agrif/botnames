@@ -48,6 +48,9 @@ new Handle:cvarEnabled; // are we enabled?
 new Handle:cvarDatabaseName; // name from databases.cfg, or "" to use file
 new Handle:cvarDatabaseTable; // what table to use
 new Handle:cvarDatabaseColumn; // what column to use
+new Handle:cvarDatabaseOrderBy; // what column to order by, or ""
+new Handle:cvarDatabaseDescending; // if ordering, order descending instead?
+new Handle:cvarDatabaseLimit; // maximum records to return
 new Handle:cvarDatabaseUseUTF8; // should we use UTF8 on mysql?
 
 // general settings
@@ -176,6 +179,10 @@ ReloadNamesFromDatabase()
 	GetConVarString(cvarDatabaseTable, dbtable, sizeof(dbtable));
 	decl String:dbcolumn[128];
 	GetConVarString(cvarDatabaseColumn, dbcolumn, sizeof(dbcolumn));
+	decl String:dborderby[128];
+	GetConVarString(cvarDatabaseOrderBy, dborderby, sizeof(dborderby));
+	
+	new dblimit = GetConVarInt(cvarDatabaseLimit);
 	
 	// setup UTF8, if requested
 	if (GetConVarBool(cvarDatabaseUseUTF8))
@@ -195,7 +202,24 @@ ReloadNamesFromDatabase()
 	
 	// construct our query
 	decl String:dbquery[512];
-	Format(dbquery, sizeof(dbquery), "SELECT %s FROM %s", dbcolumn, dbtable);
+	// we WANT new here -- initializes empty strings
+	new String:orderpart[512];
+	new String:limitpart[512];
+	
+	if (strlen(dborderby) > 0)
+	{
+		new bool:descending = GetConVarBool(cvarDatabaseDescending);
+		
+		Format(orderpart, sizeof(orderpart), " ORDER BY %s %s", dborderby, descending ? "DESC" : "ASC");
+	}
+	
+	if (dblimit > 0)
+	{
+		Format(limitpart, sizeof(limitpart), " LIMIT %i", dblimit);
+	}
+	
+	// format the final query
+	Format(dbquery, sizeof(dbquery), "SELECT %s FROM %s %s%s", dbcolumn, dbtable, orderpart, limitpart);
 	
 	// get the data
 	new Handle:query = SQL_Query(db, dbquery);
@@ -316,6 +340,9 @@ public OnPluginStart()
 	cvarDatabaseName = CreateConVar("sm_botnames_db_name", "", "a named database to load bot names from, or \"\" to load from file", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarDatabaseTable = CreateConVar("sm_botnames_db_table", "botnames", "the table to load names from, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarDatabaseColumn = CreateConVar("sm_botnames_db_column", "name", "the name of the column that contains the bot names, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarDatabaseOrderBy = CreateConVar("sm_botnames_db_order_by", "", "when using a DB, sets which column to order by, or \"\" for no ordering", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarDatabaseDescending = CreateConVar("sm_botnames_db_descending", "0", "when loading ordered from a DB, sets whether to order descending instead of ascending", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarDatabaseLimit = CreateConVar("sm_botnames_db_limit", "0", "when loading from a DB, this limits the number of names loaded, or \"0\" for no limit", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	cvarDatabaseUseUTF8 = CreateConVar("sm_botnames_db_use_utf8", "0", "sets whether to force UTF8 encoding on a MySQL connection", FCVAR_NOTIFY | FCVAR_PLUGIN);
 	
 	cvarPrefix = CreateConVar("sm_botnames_prefix", "", "sets a prefix for bot names (include a trailing space, if needed!)", FCVAR_NOTIFY | FCVAR_PLUGIN);
