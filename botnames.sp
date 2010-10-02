@@ -24,6 +24,8 @@
 // the shortest possible name length -- as a sanity check
 #define MIN_NAME_LENGTH 2
 
+new bool:configs_loaded;
+
 // this array will store the names loaded
 new Handle:bot_names;
 
@@ -333,6 +335,9 @@ DoBotName(client, primary)
 // called when the plugin loads
 public OnPluginStart()
 {
+	// set the cvar-loaded state
+	configs_loaded = false;
+	
 	// cvars!
 	cvarVersion = CreateConVar("sm_botnames_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
 	cvarEnabled = CreateConVar("sm_botnames_enabled", "1", "sets whether bot naming is enabled", FCVAR_NOTIFY | FCVAR_PLUGIN);
@@ -379,9 +384,22 @@ public OnClientDisconnect(client)
 	}
 }
 
+public OnConfigsExecuted()
+{
+	// set our flag, and reload the names
+	// (though that should only really be done when enabled...)
+	
+	configs_loaded = true;
+	ReloadNames();
+	GenerateRedirects();
+}
 
 public OnMapStart()
 {
+	// only reload names if the configuration has been loaded
+	if (!configs_loaded)
+		return;
+	
 	// note that we should change this so name reload only happens
 	// when the plugin is enabled, but for now...
 	ReloadNames();
