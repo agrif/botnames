@@ -329,7 +329,7 @@ DoBotName(client, primary)
 
 	decl String:name[MAX_NAME_LENGTH], String:new_name[MAX_NAME_LENGTH], String:client_name[MAX_NAME_LENGTH];
 	GetClientName(client, name, MAX_NAME_LENGTH);
-	if (!primary && FindStringInArray(bot_names, name) != -1)
+	if (!primary && FindStringInArray(bot_names, name) != -1 )
 	{
 		// this bot has been named appropriately, skip
 		return;
@@ -514,7 +514,10 @@ public Action:Timer_BotSetup(Handle:timer, any:client)
 
 	// timer was called, so we're definately enabled, and client is a bot
 	// no announce, in case the first rename worked
+	if (!IsClientReplay(client) && !IsClientSourceTV(client))
+	{
 	DoBotName(client, false);
+	}
 }
 
 // handle player team change, to supress bot messages
@@ -533,7 +536,7 @@ public Action:Event_PlayerTeam(Handle:event, const String:name[], bool:dontBroad
 		return Plugin_Continue;
 	}
 	
-	if (IsFakeClient(client) && configs_loaded)
+	if (configs_loaded && IsFakeClient(client) && !IsClientReplay(client) && !IsClientSourceTV(client))
 	{
 		// fake client == bot
 		
