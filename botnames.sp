@@ -6,6 +6,7 @@
 
 #include <sourcemod>
 #include <sdktools>
+#include <regex>
 
 #pragma semicolon 1
 #pragma unused cvarVersion
@@ -60,6 +61,11 @@ new Handle:cvarPrefix; // bot name prefix
 new Handle:cvarRandom; // use random-order names?
 new Handle:cvarAnnounce; // announce new bots?
 new Handle:cvarSuppress; // supress join/team/namechange messages?
+
+//RegExp
+new String:errno[128];
+new RegexError:errcode;
+new Handle:nick_pattern;
 
 public Plugin:myinfo =
 {
@@ -221,7 +227,7 @@ ReloadNamesFromDatabase()
 	}
 	
 	// format the final query
-	Format(dbquery, sizeof(dbquery), "SELECT %s FROM %s %s%s", dbcolumn, dbtable, orderpart, limitpart);
+	Format(dbquery, sizeof(dbquery), "SELECT %s FROM %s WHERE `lastAddress` != '' %s%s", dbcolumn, dbtable, orderpart, limitpart);
 	
 	// get the data
 	new Handle:query = SQL_Query(db, dbquery);
@@ -252,6 +258,9 @@ ReloadNamesFromDatabase()
 			// bum name -- invalid
 			continue;
 		}
+		//decl String:Path[PLATFORM_MAX_PATH];
+		//BuildPath(Path_SM,Path,sizeof(Path),"/logs/botnames.log");
+		//LogToFileEx(Path,"%s",newname);
 		
 		// prefix the name, and add it to our list
 		Format(formedname, sizeof(formedname), "%s%s", prefix, newname);
@@ -314,7 +323,7 @@ DoBotName(client, primary)
 		return;
 	}
 
-	decl String:name[MAX_NAME_LENGTH];
+	decl String:name[MAX_NAME_LENGTH], String:new_name[MAX_NAME_LENGTH], String:client_name[MAX_NAME_LENGTH];
 	GetClientName(client, name, MAX_NAME_LENGTH);
 	if (!primary && FindStringInArray(bot_names, name) != -1)
 	{
@@ -322,8 +331,34 @@ DoBotName(client, primary)
 		return;
 	}
 	
-	LoadNextName(name, MAX_NAME_LENGTH);	
-	SetClientInfo(client, "name", name);
+	//decl String:Path[PLATFORM_MAX_PATH];
+	//BuildPath(Path_SM,Path,sizeof(Path),"/logs/botnames.log");
+	
+	LoadNextName(new_name, MAX_NAME_LENGTH);
+	if (loaded_names >= 2) // If there are less than 2 names it is bound to bring infinite loop
+	{
+		new bool:conflict = true;
+		new names_checked = 0;
+		while (conflict && (names_checked <= 10))
+		{
+			conflict = false;
+			for (new iClient = 1; iClient <= MaxClients; iClient++)
+			{
+				if (client == iClient)
+					continue;
+				GetClientName(client, client_name, MAX_NAME_LENGTH);
+				if (!strcmp(new_name, client_name))
+				{
+					//LogToFileEx(Path,"Selected bot name is already used: %s",new_name);
+					conflict = true;
+					names_checked++;
+					break;
+				}
+			}
+			
+		}
+	}
+	SetClientInfo(client, "name", new_name);
 	
 	if (GetConVarBool(cvarAnnounce) && primary)
 	{
@@ -338,22 +373,24 @@ public OnPluginStart()
 	// set the cvar-loaded state
 	configs_loaded = false;
 	
+	nick_pattern = CompileRegex("^\\(\\d\\)", 0, errno, sizeof(errno), errcode);
+	
 	// cvars!
-	cvarVersion = CreateConVar("sm_botnames_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
-	cvarEnabled = CreateConVar("sm_botnames_enabled", "1", "sets whether bot naming is enabled", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarVersion = CreateConVar("sm_botnames_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION,  FCVAR_PLUGIN | FCVAR_DONTRECORD);
+	cvarEnabled = CreateConVar("sm_botnames_enabled", "1", "sets whether bot naming is enabled", FCVAR_PLUGIN);
 	
-	cvarDatabaseName = CreateConVar("sm_botnames_db_name", "", "a named database to load bot names from, or \"\" to load from file", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarDatabaseTable = CreateConVar("sm_botnames_db_table", "botnames", "the table to load names from, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarDatabaseColumn = CreateConVar("sm_botnames_db_column", "name", "the name of the column that contains the bot names, if loading from a database", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarDatabaseOrderBy = CreateConVar("sm_botnames_db_order_by", "", "when using a DB, sets which column to order by, or \"\" for no ordering", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarDatabaseDescending = CreateConVar("sm_botnames_db_descending", "0", "when loading ordered from a DB, sets whether to order descending instead of ascending", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarDatabaseLimit = CreateConVar("sm_botnames_db_limit", "0", "when loading from a DB, this limits the number of names loaded, or \"0\" for no limit", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarDatabaseUseUTF8 = CreateConVar("sm_botnames_db_use_utf8", "0", "sets whether to force UTF8 encoding on a MySQL connection", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarDatabaseName = CreateConVar("sm_botnames_db_name", "", "a named database to load bot names from, or \"\" to load from file", FCVAR_PLUGIN);
+	cvarDatabaseTable = CreateConVar("sm_botnames_db_table", "botnames", "the table to load names from, if loading from a database", FCVAR_PLUGIN);
+	cvarDatabaseColumn = CreateConVar("sm_botnames_db_column", "name", "the name of the column that contains the bot names, if loading from a database", FCVAR_PLUGIN);
+	cvarDatabaseOrderBy = CreateConVar("sm_botnames_db_order_by", "", "when using a DB, sets which column to order by, or \"\" for no ordering", FCVAR_PLUGIN);
+	cvarDatabaseDescending = CreateConVar("sm_botnames_db_descending", "0", "when loading ordered from a DB, sets whether to order descending instead of ascending", FCVAR_PLUGIN);
+	cvarDatabaseLimit = CreateConVar("sm_botnames_db_limit", "0", "when loading from a DB, this limits the number of names loaded, or \"0\" for no limit", FCVAR_PLUGIN);
+	cvarDatabaseUseUTF8 = CreateConVar("sm_botnames_db_use_utf8", "0", "sets whether to force UTF8 encoding on a MySQL connection", FCVAR_PLUGIN);
 	
-	cvarPrefix = CreateConVar("sm_botnames_prefix", "", "sets a prefix for bot names (include a trailing space, if needed!)", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarRandom = CreateConVar("sm_botnames_random", "1", "sets whether to randomize names used", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarAnnounce = CreateConVar("sm_botnames_announce", "0", "sets whether to announce bots when added", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarSuppress = CreateConVar("sm_botnames_suppress", "1", "sets whether to supress join/team change/name change bot messages", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarPrefix = CreateConVar("sm_botnames_prefix", "", "sets a prefix for bot names (include a trailing space, if needed!)", FCVAR_PLUGIN);
+	cvarRandom = CreateConVar("sm_botnames_random", "1", "sets whether to randomize names used", FCVAR_PLUGIN);
+	cvarAnnounce = CreateConVar("sm_botnames_announce", "0", "sets whether to announce bots when added", FCVAR_PLUGIN);
+	cvarSuppress = CreateConVar("sm_botnames_suppress", "1", "sets whether to supress join/team change/name change bot messages", FCVAR_PLUGIN);
 	
 	// hook team change, connect to supress messages
 	HookEvent("player_connect", Event_PlayerConnect, EventHookMode_Pre);
@@ -492,7 +529,7 @@ public Action:Event_PlayerTeam(Handle:event, const String:name[], bool:dontBroad
 		return Plugin_Continue;
 	}
 	
-	if (IsFakeClient(client))
+	if (IsFakeClient(client) && configs_loaded)
 	{
 		// fake client == bot
 		
@@ -520,32 +557,77 @@ public Action:Event_PlayerTeam(Handle:event, const String:name[], bool:dontBroad
 // handle player connect, to supress bot messages
 public Action:Event_PlayerConnect(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if (!(GetConVarBool(cvarEnabled) && GetConVarBool(cvarSuppress)))
+	decl String:networkID[32], String:clientName[MAX_NAME_LENGTH];
+	GetEventString(event, "networkid", networkID, sizeof(networkID));
+	
+	new ConnectedUserID = GetEventInt(event, "userid");
+	
+	//decl String:Path[PLATFORM_MAX_PATH];
+	//BuildPath(Path_SM,Path,sizeof(Path),"/logs/botnames.log");
+
+	if(StrEqual(networkID, "BOT"))
 	{
+		//LogToFileEx(Path,"BOT connected");
+		if (!dontBroadcast)
+		{
+			if (!(GetConVarBool(cvarEnabled) && GetConVarBool(cvarSuppress)))
+			{
+				return Plugin_Continue;
+			}
+			
+			// we got a bot connectin', resend event as no-broadcast
+			decl String:address[32];
+			GetEventString(event, "name", clientName, sizeof(clientName));
+			GetEventString(event, "address", address, sizeof(address));
+
+			new Handle:newEvent = CreateEvent("player_connect", true);
+			SetEventString(newEvent, "name", clientName);
+			SetEventInt(newEvent, "index", GetEventInt(event, "index"));
+			SetEventInt(newEvent, "userid", ConnectedUserID);
+			SetEventString(newEvent, "networkid", networkID);
+			SetEventString(newEvent, "address", address);
+
+			FireEvent(newEvent, true);
+
+			return Plugin_Handled;
+		}
 		return Plugin_Continue;
 	}
-
-	decl String:networkID[32];
-	GetEventString(event, "networkid", networkID, sizeof(networkID));
-
-	if(!dontBroadcast && StrEqual(networkID, "BOT"))
+	else
 	{
-		// we got a bot connectin', resend event as no-broadcast
-		decl String:clientName[MAX_NAME_LENGTH], String:address[32];
+		decl String:bot_name[65];
+		new RegexError:ret = REGEX_ERROR_NONE;
+		
 		GetEventString(event, "name", clientName, sizeof(clientName));
-		GetEventString(event, "address", address, sizeof(address));
-
-		new Handle:newEvent = CreateEvent("player_connect", true);
-		SetEventString(newEvent, "name", clientName);
-		SetEventInt(newEvent, "index", GetEventInt(event, "index"));
-		SetEventInt(newEvent, "userid", GetEventInt(event, "userid"));
-		SetEventString(newEvent, "networkid", networkID);
-		SetEventString(newEvent, "address", address);
-
-		FireEvent(newEvent, true);
-
-		return Plugin_Handled;
+		//LogToFileEx(Path,"Client %s connected",clientName);
+		if (MatchRegex(nick_pattern, clientName, ret))
+			{
+			ReplaceString(clientName, sizeof(clientName), "(1)", ""); //Remove (1) if any
+			//LogToFileEx(Path,"Client %s connected (2)",clientName);
+		}
+		
+		for (new iClient = 1; iClient <= MaxClients; iClient++)
+		{
+			//Skip if not BOT
+			if (!IsClientConnected(iClient))
+				continue;
+			if (!IsFakeClient(iClient))
+				continue;
+			
+			GetClientName(iClient, bot_name, sizeof(bot_name));
+			//LogToFileEx(Path,"Checking for conflicts bot %s",bot_name);
+			if (StrContains(clientName, bot_name) != -1)
+			{
+				//LogToFileEx(Path,"Conflict found with bot %s",bot_name);
+				DoBotName(iClient, true);
+				
+				if (IsClientConnected(ConnectedUserID))
+				{
+					SetClientInfo(ConnectedUserID, "name", clientName); //Can be useful for some player
+					//bot_timers[client] = CreateTimer(BOTSETUP_WAIT, Timer_RenamePlayer, client);
+				}
+			}
+		}
+		return Plugin_Continue;
 	}
-
-	return Plugin_Continue;
 }
