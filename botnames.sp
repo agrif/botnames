@@ -28,7 +28,7 @@
 new bool:configs_loaded;
 
 // this array will store the names loaded
-new Handle:bot_names;
+new Handle:bot_names = INVALID_HANDLE;
 
 // this array will have a list of indexes to
 // bot_names, use these in order
@@ -60,7 +60,7 @@ new Handle:cvarDatabaseUseUTF8; // should we use UTF8 on mysql?
 new Handle:cvarPrefix; // bot name prefix
 new Handle:cvarRandom; // use random-order names?
 new Handle:cvarAnnounce; // announce new bots?
-new Handle:cvarSuppress; // supress join/team/namechange messages?
+new Handle:cvarSuppress = INVALID_HANDLE;// supress join/team/namechange messages?
 
 //RegExp
 new String:errno[128];
@@ -316,6 +316,10 @@ LoadNextName(String:name[], maxlen)
 // actually set the client name
 DoBotName(client, primary)
 {
+	if (bot_names == INVALID_HANDLE)
+	{
+		return;
+	}
 	// if we have no names, just stop right there
 	new loaded_names = GetArraySize(bot_names);
 	if (loaded_names <= 0)
@@ -544,7 +548,7 @@ public Action:Event_PlayerTeam(Handle:event, const String:name[], bool:dontBroad
 		}
 		
 		// suppress if we have to
-		if (GetConVarBool(cvarSuppress))
+		if ( (cvarSuppress != INVALID_HANDLE) && (GetConVarBool(cvarSuppress)))
 		{
 			SetEventBool(event, "silent", true);
 			return Plugin_Changed;
